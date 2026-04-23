@@ -6,21 +6,20 @@ async function migrate() {
         // Create table with full Stage 2 schema
         await client.query(`
             CREATE TABLE IF NOT EXISTS profiles (
-                                                    id                  TEXT PRIMARY KEY,
-                                                    name                VARCHAR NOT NULL UNIQUE,
-                                                    gender              VARCHAR,
-                                                    gender_probability  FLOAT,
-                                                    sample_size         INTEGER,
-                                                    age                 INTEGER,
-                                                    age_group           VARCHAR,
-                                                    country_id          VARCHAR(2),
-                                                    country_name        VARCHAR,
-                                                    country_probability FLOAT,
-                                                    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                id                  TEXT PRIMARY KEY,
+                name                VARCHAR NOT NULL UNIQUE,
+                gender              VARCHAR,
+                gender_probability  FLOAT,
+                sample_size         INTEGER,
+                age                 INTEGER,
+                age_group           VARCHAR,
+                country_id          VARCHAR(2),
+                country_name        VARCHAR,
+                country_probability FLOAT,
+                created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
         `);
 
-        // Add country_name column if upgrading from Stage 1
         await client.query(`
       ALTER TABLE profiles ADD COLUMN IF NOT EXISTS country_name VARCHAR;
     `);

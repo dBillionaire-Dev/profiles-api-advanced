@@ -2,14 +2,14 @@ import { pool } from "./pool";
 import { uuidv7 } from "uuidv7";
 import seedData from "./seed_profiles.json";
 
-async function seed() {
+async function seed(): Promise<void> {
     const client = await pool.connect();
     try {
         const profiles = seedData.profiles;
         console.log(`Seeding ${profiles.length} profiles...`);
 
-        let inserted = 0;
-        let skipped = 0;
+        let inserted: number = 0;
+        let skipped: number = 0;
 
         for (const profile of profiles) {
             const result = await client.query(

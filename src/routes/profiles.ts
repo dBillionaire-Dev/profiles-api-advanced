@@ -13,7 +13,7 @@ import { ProfileFilters } from "../types";
 
 const router = Router();
 
-// ─── Helper: parse pagination + sort from query ───────────────────────────────
+// ─── Helper: parse pagination + sort from query ───
 function parsePaginationAndSort(query: any): Partial<ProfileFilters> {
     const result: Partial<ProfileFilters> = {};
 
@@ -47,7 +47,7 @@ function parsePaginationAndSort(query: any): Partial<ProfileFilters> {
     return result;
 }
 
-// ─── GET /api/profiles/search ─────────────────────────────────────────────────
+// ─── GET /api/profiles/search ───
 // Must be registered BEFORE /:id to avoid route collision
 router.get("/search", async (req: Request, res: Response): Promise<void> => {
     const { q } = req.query;
@@ -88,7 +88,7 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
     }
 });
 
-// ─── POST /api/profiles ────────────────────────────────────────────────────────
+// ─── POST /api/profiles ───
 router.post("/", async (req: Request, res: Response): Promise<void> => {
     const { name } = req.body;
 
@@ -136,7 +136,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     }
 });
 
-// ─── GET /api/profiles ─────────────────────────────────────────────────────────
+// ─── GET /api/profiles ───
 router.get("/", async (req: Request, res: Response): Promise<void> => {
     try {
         const pagination = parsePaginationAndSort(req.query);
@@ -187,7 +187,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     }
 });
 
-// ─── GET /api/profiles/:id ─────────────────────────────────────────────────────
+// ─── GET /api/profiles/:id ───
 router.get("/:id", async (req: Request, res: Response): Promise<void> => {
     try {
         const profile = await findProfileById(req.params.id);
@@ -202,7 +202,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
     }
 });
 
-// ─── DELETE /api/profiles/:id ──────────────────────────────────────────────────
+// ─── DELETE /api/profiles/:id ───
 router.delete("/:id", async (req: Request, res: Response): Promise<void> => {
     try {
         const deleted = await deleteProfileById(req.params.id);
@@ -217,7 +217,7 @@ router.delete("/:id", async (req: Request, res: Response): Promise<void> => {
     }
 });
 
-// ─── Formatters ────────────────────────────────────────────────────────────────
+// ─── Formatters ───
 function formatProfile(p: any) {
     return {
         id: p.id,
