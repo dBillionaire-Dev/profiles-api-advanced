@@ -1,136 +1,140 @@
-# Profiles API
+# Profiles API — Stage 2: Intelligence Query Engine
 
-A REST API that aggregates name-based predictions from Genderize, Agify, and Nationalize, stores results in PostgreSQL, and exposes CRUD endpoints.
+A REST API that aggregates name-based demographic predictions and exposes a queryable intelligence engine with advanced filtering, sorting, pagination, and natural language search.
 
 ## Tech Stack
 
 - **Runtime**: Node.js + TypeScript
 - **Framework**: Express
 - **Database**: PostgreSQL
-- **ID generation**: UUID v7 (`uuidv7` package)
+- **ID generation**: UUID v7
 - **HTTP client**: Axios
 
 ## Project Structure
 
 ```
 src/
-├── index.ts                      # Entry point
-├── app.ts                        # Express app + middleware
+├── index.ts                          # Entry point
+├── app.ts                            # Express app + middleware
 ├── db/
-│   ├── pool.ts                   # PostgreSQL connection pool
-│   └── migrate.ts                # Creates the profiles table
+│   ├── pool.ts                       # PostgreSQL connection pool
+│   ├── migrate.ts                    # Creates/upgrades profiles table + indexes
+│   ├── seed.ts                       # Seeds 2026 profiles from JSON
+│   └── seed_profiles.json            # Seed data
 ├── routes/
-│   └── profiles.ts               # All 4 endpoints
+│   └── profiles.ts                   # All endpoints
 ├── services/
-│   └── aggregator.ts             # Calls 3 external APIs + classification
+│   ├── aggregator.ts                 # Calls 3 external APIs
+│   └── nlpParser.ts                  # Natural language query parser
 ├── repositories/
-│   └── profileRepository.ts      # All DB queries
+│   └── profileRepository.ts          # All DB queries with filtering/pagination
 └── types/
-    └── index.ts                  # TypeScript interfaces
+    └── index.ts                      # TypeScript interfaces
 ```
 
 ## Local Setup
 
-### Prerequisites
-- Node.js 18+
-- PostgreSQL running locally (or a connection string to a hosted DB)
-
-### Steps
-
 ```bash
-# 1. Clone and install
 git clone <your-repo-url>
 cd profiles-api
 npm install
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env and set your DATABASE_URL
-
-# 3. Run the migration (creates the profiles table)
+cp .env.example .env        # set DATABASE_URL
 npm run build
-npm run migrate
-
-# 4. Start the dev server
+npm run migrate             # create table + indexes
+npm run seed                # insert 2026 profiles
 npm run dev
 ```
 
-### Environment Variables
+## Deployment (Railway)
 
-| Variable | Description | Example |
-|---|---|---|
-| `PORT` | Port to run the server on | `3000` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/profiles_db` |
+Start command:
+```bash
+npm run build && npm run migrate && npm run seed && npm start
+```
 
 ## API Endpoints
 
 ### POST /api/profiles
-Create a new profile. If the name already exists, returns the existing one.
+Create a profile from a name. Calls Genderize, Agify, Nationalize.
 
-**Request:**
-```json
-{ "name": "nex" }
-```
+### GET /api/profiles
+List profiles with advanced filtering, sorting, and pagination.
 
-**Response (201):**
+**Filters:**
+| Param | Type | Example |
+|---|---|---|
+| `gender` | string | `male` / `female` |
+| `age_group` | string | `adult` / `senior` / `child` / `teenager` |
+| `country_id` | string | `NG` |
+| `min_age` | number | `25` |
+| `max_age` | number | `40` |
+| `min_gender_probability` | float | `0.8` |
+| `min_country_probability` | float | `0.5` |
+
+**Sorting:**
+| Param | Values |
+|---|---|
+| `sort_by` | `age` / `created_at` / `gender_probability` |
+| `order` | `asc` / `desc` |
+
+**Pagination:**
+| Param | Default | Max |
+|---|---|---|
+| `page` | `1` | — |
+| `limit` | `10` | `50` |
+
+**Response:**
 ```json
 {
   "status": "success",
-  "data": {
-    "id": "019d99b0-1d75-7937-8ded-6e482ff56bfa",
-    "name": "nex",
-    "gender": "male",
-    "gender_probability": 0.81,
-    "sample_size": 532,
-    "age": 51,
-    "age_group": "adult",
-    "country_id": "AO",
-    "country_probability": 0.06776679651594841,
-    "created_at": "2026-04-17T04:25:50.624Z"
-  }
+  "page": 1,
+  "limit": 10,
+  "total": 2026,
+  "data": [...]
 }
 ```
 
-### GET /api/profiles
-List all profiles. Supports optional case-insensitive filters:
-- `?gender=female`
-- `?country_id=NG`
-- `?age_group=adult`
+### GET /api/profiles/search?q=...
+Natural language query engine.
+
+**Examples:**
+```
+/api/profiles/search?q=young males from nigeria
+/api/profiles/search?q=females above 30
+/api/profiles/search?q=adult males from kenya
+/api/profiles/search?q=senior women from ghana
+/api/profiles/search?q=teenagers below 18
+/api/profiles/search?q=people from angola
+```
+
+**How parsing works:**
+- `young` → min_age=16, max_age=24
+- `male/men/man/boys` → gender=male
+- `female/women/woman/girls` → gender=female
+- `above/over X` → min_age=X
+- `below/under X` → max_age=X
+- `between X and Y` → min_age=X, max_age=Y
+- Country names → ISO code (e.g. `nigeria` → `NG`)
+- Age group words → `child/teenager/adult/senior`
+
+Supports `page` and `limit` params too.
 
 ### GET /api/profiles/:id
 Get a single profile by UUID.
 
 ### DELETE /api/profiles/:id
-Delete a profile. Returns `204 No Content` on success.
+Delete a profile. Returns `204 No Content`.
 
 ## Error Responses
 
-All errors follow this structure:
 ```json
 { "status": "error", "message": "..." }
 ```
 
 | Status | Cause |
 |---|---|
-| 400 | Missing or empty `name` |
-| 422 | `name` is not a string |
+| 400 | Missing/empty parameter |
+| 422 | Invalid type or uninterpretable NLP query |
 | 404 | Profile not found |
-| 502 | External API returned invalid/null data |
+| 502 | External API returned invalid data |
 | 500 | Internal server error |
-
-## Deployment (Railway)
-
-1. Create a new project on [Railway](https://railway.app)
-2. Add a **PostgreSQL** plugin — Railway auto-sets `DATABASE_URL`
-3. Connect your GitHub repo
-4. Set `NODE_ENV=production` in Railway environment variables
-5. Set the start command to: `npm run build && npm run migrate && npm start`
-
-## Age Classification Logic
-
-| Age Range | Group |
-|---|---|
-| 0–12 | child |
-| 13–19 | teenager |
-| 20–59 | adult |
-| 60+ | senior |
